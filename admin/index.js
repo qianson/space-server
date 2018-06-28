@@ -102,16 +102,17 @@ router.post('/publish',function(req,res,next){
     let title = req.body.title;
     let summary = req.body.summary;
     let type = req.body.type;
-    let recommend = req.body.recommend;
+    let recommand = req.body.recommand;
     let thumbnailUrl = req.body.thumbnailUrl;
     let content = req.body.content;
     let knowCode = req.body.knowCode;
-    if (title&&summary&&type&&knowCode&&recommend&&thumbnailUrl&&content) {
+    let creater = '何育骞';
+    if (title&&summary&&type&&knowCode&&recommand&&thumbnailUrl&&content) {
         let id = randowId();
         let pubTime = Date.now();
-        let valueArr = [[id,title,summary,type,knowCode,recommend,thumbnailUrl,content,pubTime]];
+        let valueArr = [[id,title,summary,type,knowCode,recommand,thumbnailUrl,content,pubTime,creater]];
         console.log(valueArr)
-        db.query("INSERT INTO pubArticle (`id`,`title`,`summary`,`type`,`knowCode`,`recommend`,`thumbnailUrl`,`content`,`pubTime`) VALUES ?",[valueArr],
+        db.query("INSERT INTO pubArticle (`id`,`title`,`summary`,`type`,`knowCode`,`recommand`,`thumbnailUrl`,`content`,`pubTime`,`creater`) VALUES ?",[valueArr],
             function (err, rows) {
             if (err) {
                 console.log(err)
@@ -128,8 +129,7 @@ router.post('/publish',function(req,res,next){
 router.get('/articlesList', function (req, res, next) {
     let title = req.query.title;
     let konwCode = req.query.knowCode;
-    let recommend = req.query.recommend;
-    console.log(title,konwCode,recommend)
+    let recommand = req.query.recommand;
     let pageSize = Number(req.query.pageSize);
     let currentPage = Number(req.query.currentPage);
     let offset = pageSize*(currentPage-1);
@@ -170,8 +170,8 @@ router.post('/editArticle',function(req,res,next){
     let type = Number(req.body.type);
     let kownCode = Number(req.body.knowCode);
     let summary = req.body.summary;
-    let recommend = req.body.recommend;
-  db.query(`update pubArticle set title=?,type=?,knowCode=?,summary=?,recommend=? where id =?`,[title,type,kownCode,summary,recommend,id],function (err, rows) {
+    let recommand = req.body.recommand;
+  db.query(`update pubArticle set title=?,type=?,knowCode=?,summary=?,recommand=? where id =?`,[title,type,kownCode,summary,recommand,id],function (err, rows) {
       console.log(err)
       if (err) {
           res.status(500).send({code: -1,message: '数据库操作失败'}).end();
