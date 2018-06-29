@@ -65,14 +65,26 @@ router.post('/leaveMessageList',function (req,res,next) {
         if (err) {
             res.status(500).send({code: -1, message: '数据库操作异常'}).end();
         } else {
-            db.query(`select * from leaveMessage left join reply_table on(leaveMessage.id = reply_table.messageId)`,function (err1,rows1) {
-                if(err1){
-                    console.log(err1)
-                } else {
-                    console.log(rows1)
-                }
-            })
-            res.status(200).send({code: 0, message: 'success',data:rows}).end();
+            if (rows.length > 0) {
+                let func = rows.map((item) => {
+                    return new Promise(function(resolve,reject){
+                        db.query(`select * from reply_table where messageId = ?;`,[item.id],function (err1,rowsItem) {
+                            if (err1) {
+                                reject(err1);
+                                res.status(500).send({code: -1, message: '数据库操作异常'}).end();
+                            } else {
+                                item.replyList = rowsItem;
+                                resolve(item);
+                            }
+                        })
+                    })
+                })
+                Promise.all(func).then((response) => {
+                    res.status(200).send({code:0,message:'success',data:response}).end();
+                })
+            } else {
+                res.status(200).send({code: 0, message: 'success',data:rows}).end();
+            }
         }
     })
 });
