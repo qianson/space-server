@@ -60,28 +60,33 @@ router.post('/leaveMessage',function (req,res,next) {
 });
 // 留言列表
 router.post('/leaveMessageList',function (req,res,next) {
-    console.log(req.body);
-    db.query(`select * from leaveMessage order by messageTime desc`,function(err,rows) {
+    let newestCode = req.body.newestCode;
+    let queryStr = newestCode !==1 ? `select * from leaveMessage order by messageTime desc` : `select * from leaveMessage order by messageTime desc limit 0,5`;
+    db.query(queryStr,function(err,rows) {
         if (err) {
             res.status(500).send({code: -1, message: '数据库操作异常'}).end();
         } else {
             if (rows.length > 0) {
-                let func = rows.map((item) => {
-                    return new Promise(function(resolve,reject){
-                        db.query(`select * from reply_table where messageId = ?;`,[item.id],function (err1,rowsItem) {
-                            if (err1) {
-                                reject(err1);
-                                res.status(500).send({code: -1, message: '数据库操作异常'}).end();
-                            } else {
-                                item.replyList = rowsItem;
-                                resolve(item);
-                            }
+                if (newestCode !== 1) {
+                    let func = rows.map((item) => {
+                        return new Promise(function(resolve,reject){
+                            db.query(`select * from reply_table where messageId = ?;`,[item.id],function (err1,rowsItem) {
+                                if (err1) {
+                                    reject(err1);
+                                    res.status(500).send({code: -1, message: '数据库操作异常'}).end();
+                                } else {
+                                    item.replyList = rowsItem;
+                                    resolve(item);
+                                }
+                            })
                         })
                     })
-                })
-                Promise.all(func).then((response) => {
-                    res.status(200).send({code:0,message:'success',data:response}).end();
-                })
+                    Promise.all(func).then((response) => {
+                        res.status(200).send({code:0,message:'success',data:response}).end();
+                    })
+                } else{
+                    res.status(200).send({code: 0, message: 'success',data:rows}).end();
+                }
             } else {
                 res.status(200).send({code: 0, message: 'success',data:rows}).end();
             }
@@ -118,8 +123,9 @@ router.get('/recommand',function (req,res,next) {
     })
 });
 // 最新文章
-router.get('/newestArticles',function (req,res,next) {
-    db.query(`select * from pubArticle order by pubTime desc limit 0,10;`,function (err,rows) {
+router.get('/getArticles',function (req,res,next) {
+    let queryStr = req.query.typeCode ===1 ? `select * from pubArticle order by pubTime desc limit 0,10;`:`select * from pubArticle order by likeNum desc limit 0,5;`
+    db.query(queryStr,function (err,rows) {
         if (err) {
             console.log(err)
             res.status(500).send({code: -1,message: '数据库操作异常'}).end();
@@ -211,7 +217,23 @@ router.get('/articleLike',function (req,res,next) {
                         console.log(err,'2')
                         res.status(500).send({code:-1,message:'数据库操作异常'}).end();
                     } else {
-                        res.status(200).send({code:0,message:'success'}).end();
+                        db.query(`select likeNum from pubArticle where id = ?;`,[articleId],function (err6,rows6) {
+                            if (err6) {
+                                console.log(err6,'6')
+                                res.status(500).send({code:-1,message:'数据库操作异常'}).end();
+                            } else {
+                                let getLikeNum = rows6[0].likeNum ? rows6[0].likeNum + 1: 1;
+                                db.query(`update pubArticle set likeNum = ? where id = ?;`,[getLikeNum,articleId],function (err5,rows) {
+                                    if (err5) {
+                                        console.log(err5,'5')
+                                        res.status(500).send({code:-1,message:'数据库操作异常'}).end();
+                                    } else {
+                                        console.log('更新成功')
+                                        res.status(200).send({code:0,message:'success'}).end();
+                                    }
+                                })
+                            }
+                        })
                     }
                 })
             } else {
@@ -220,7 +242,13 @@ router.get('/articleLike',function (req,res,next) {
                         console.log(err,'3')
                         res.status(500).send({code:-1,message:'数据库操作异常'}).end();
                     } else{
-                        res.status(200).send({code:0,message:'success'}).end();
+                        db.query(`update pubArticle set likeNum = likeNum +1  where id = ?;`,[articleId],function (err4,rows) {
+                            if (err4) {
+                                console.log(err4,'4')
+                            } else {
+                                res.status(200).send({code:0,message:'success'}).end();
+                            }
+                        })
                     }
                 })
             }
@@ -260,5 +288,52 @@ router.get('/articleCollect',function (req,res,next) {
         }
     })
 });
-module.exports = router
+// 获取基本数据
+router.get('/basicData',function (req,res,next) {
+    db.query(`select count(*) as likeNum from operate_table where isLiked =? union all select count(*) as collectNum from operate_table where isCollected =? union all select count(*) as userNum from userInfo union all select count(*) as messageNum from leaveMessage;`,[1,1],function(err,rows){
+        if (err) {
+            res.status(500).send({code: -1,message: '数据库操作异常'}).end();
+        } else {
+            let data = {};
+            console.log(rows,'rows')
+            data.likeNum = rows[0].likeNum;
+            data.collectNum = rows[1].likeNum;
+            data.userNum = rows[2].likeNum;
+            data.messageNum = rows[3].likeNum;
+            res.status(200).send({code: 0,message: 'success',data: data}).end();
+        }
+    })
+});
+// 获取收藏
+router.get('/collectList',function (req,res,next) {
+   let userId = req.query.userId;
+   let isCollected = req.query.isCollected;
+   console.log(userId,isCollected)
+   db.query(`select articleId from operate_table where userId = ? and isCollected = ?;`,[userId,isCollected],function (err,rows) {
+       if (err) {
+           res.status(500).send({code: -1,message: '数据库操作异常'}).end();
+       } else {
+           if (rows.length > 0) {
+               let func = rows.map((item) => {
+                   return new Promise(function(resolve,reject){
+                       db.query(`select * from pubArticle where id = ?;`,[item.articleId],function (err1,rowsItem) {
+                           if (err1) {
+                               reject(err1);
+                               res.status(500).send({code: -1, message: '数据库操作异常'}).end();
+                           } else {
+                               resolve(rowsItem[0]);
+                           }
+                       })
+                   })
+               })
+               Promise.all(func).then((response) => {
+                   res.status(200).send({code:0,message:'success',data:response}).end();
+               })
+           } else {
+               res.status(200).send({code:0,message:'success',data:response}).end();
+           }
+       }
+    })
+});
+module.exports = router;
 

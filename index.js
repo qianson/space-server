@@ -22,6 +22,7 @@ io.on('connection',function(socket) {
         io.sockets.emit('backMsg',data) // 发送信息给所有客户端 包括自己
     })
 })
+var port = process.env.PORT || 9999;
 app.all('*', function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "X-Requested-With, Content-Type,Authorization");
@@ -47,6 +48,6 @@ app.all('*', function(req, res, next) {
 });
 app.use('/admin', require('./admin/index.js'));
 app.use('/web', require('./web/index.js'));
-server.listen(9999,() => {
+server.listen(port,() => {
     console.log('connet success')
 })
